@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Dapur Duo — Kerja Sama Dua Pegawai Restoran</title>
+<title>Dapur Duo v7 — Kerja Sama Dua Pegawai Restoran</title>
 <link href="https://fonts.googleapis.com/css2?family=Bungee&family=Chivo:wght@400;700;900&display=swap" rel="stylesheet">
 <style>
 :root{
@@ -42,7 +42,6 @@ button{font-family:inherit}
 .roles2 h3{font-family:'Bungee'; font-size:14px; letter-spacing:.5px; margin-bottom:6px}
 .roles2 .k{color:var(--kuning)} .roles2 .p{color:#E8B46B}
 .roles2 ol{margin-left:17px; font-size:12.8px; color:#CDBFA6; line-height:1.65}
-.roles2 .you{display:inline-block; background:var(--tomat); color:#fff; font-size:10px; font-weight:900; padding:2px 7px; border-radius:20px; margin-left:6px; vertical-align:2px}
 .resep{font-size:12.5px; color:#CDBFA6; margin-bottom:18px}
 .resep b{color:var(--krem)}
 .tapline{background:#3B2C20; border:2px solid #5a4835; border-radius:10px; padding:9px 13px; font-size:12.5px; color:#E8B46B; font-weight:700; margin-bottom:16px; text-align:left}
@@ -69,6 +68,11 @@ label.lb{display:block; font-size:12px; font-weight:900; letter-spacing:1.5px; c
 .linkbtn{background:none;border:none;color:#8a765c;font-weight:700;font-size:12.5px;cursor:pointer;margin-top:14px;display:block;width:100%}
 .linkbtn:hover{color:#CDBFA6}
 
+/* Diagnostik */
+#diagOut{background:#141009; color:#9FE0A8; border:2px solid #5a4835; border-radius:10px;
+  font-family:monospace; font-size:11.5px; line-height:1.7; padding:12px; margin-top:14px;
+  white-space:pre-wrap; word-break:break-word; max-height:50vh; overflow:auto; user-select:all}
+
 #app{position:fixed; inset:0; display:flex; flex-direction:column; background:#7A5A44}
 #hud{display:flex; gap:8px; align-items:center; width:100%; flex-wrap:wrap; padding:8px 10px; background:var(--krem); border-bottom:3px solid var(--tinta)}
 .hLogo{font-family:'Bungee'; font-size:16px; letter-spacing:.5px}
@@ -85,8 +89,7 @@ label.lb{display:block; font-size:12px; font-weight:900; letter-spacing:1.5px; c
 .spacer{flex:1}
 .icon-btn{background:#FFFDF6; border:2.5px solid var(--tinta); border-radius:10px; padding:5px 11px; cursor:pointer;
   font-weight:900; font-size:13px; box-shadow:0 3px 0 rgba(42,31,23,.35); display:flex; align-items:center; gap:6px}
-.icon-btn:hover{transform:translateY(-1px)}
-#stage{flex:1; position:relative; min-height:0; background:#E7D9BD}
+#stage{flex:1; position:relative; min-height:0; background:#7A5A44}
 #cv{position:absolute; inset:0; width:100%; height:100%; display:block; touch-action:none; cursor:pointer}
 #toast{position:absolute; top:14px; left:50%; transform:translateX(-50%) translateY(-8px); background:var(--tinta); color:var(--krem);
   padding:8px 16px; border-radius:10px; font-weight:700; font-size:14px; opacity:0; pointer-events:none; transition:.18s; white-space:nowrap; z-index:5; border:2px solid var(--krem); max-width:94%}
@@ -131,19 +134,32 @@ label.lb{display:block; font-size:12px; font-weight:900; letter-spacing:1.5px; c
 <div id="scrTitle" class="screen">
   <div class="panel" style="text-align:center">
     <h1>DAPUR <em>DUO</em></h1>
-    <p class="tag" style="margin-left:auto;margin-right:auto">Penuhi pesanan pelanggan sebelum kesabaran mereka habis!</p>
+    <p class="mini" style="margin-top:-4px">v7-diag</p>
     <canvas id="cvTitle" width="340" height="128"></canvas>
     <div class="row" style="justify-content:center">
       <button class="btn" id="btnLocal">Main di Satu Layar</button>
       <button class="btn alt" id="btnOnline">Main Online</button>
     </div>
-    <div class="roles2" style="text-align:left; margin-top:22px">
+    <div class="roles2" style="text-align:left; margin-top:20px">
       <div><h3 class="k">KOKI</h3>
         <ol><li>Ambil piring &amp; bahan</li><li>Masak daging &amp; pasta di kompor</li><li>Rakit di meja taplak, taruh di rak saji</li></ol></div>
       <div><h3 class="p">PELAYAN</h3>
         <ol><li>Ambil hidangan di rak saji</li><li>Antar ke meja yang cocok</li><li>Cuci piring kotor di bak</li></ol></div>
     </div>
     <p class="resep"><b>Burger</b> = roti + daging &nbsp;·&nbsp; <b>Pasta</b> = pasta + saus &nbsp;·&nbsp; <b>Salad</b> = sayur + tomat</p>
+    <button class="linkbtn" id="btnDiag" style="margin-top:4px">Cek Diagnostik (kalau online bermasalah)</button>
+  </div>
+</div>
+
+<div id="scrDiag" class="screen hidden">
+  <div class="panel">
+    <h2>Diagnostik</h2>
+    <p class="mini">Jalankan tes ini lalu <b>foto hasilnya</b> dan kirim ke saya — hasil ini langsung menunjukkan bagian yang rusak.</p>
+    <div id="diagOut">Menjalankan tes…</div>
+    <div class="row" style="margin-top:14px">
+      <button class="btn" id="btnDiagRun" style="flex:1">Ulangi Tes</button>
+      <button class="btn alt" id="btnDiagBack" style="flex:1">Kembali</button>
+    </div>
   </div>
 </div>
 
@@ -249,12 +265,11 @@ label.lb{display:block; font-size:12px; font-weight:900; letter-spacing:1.5px; c
 
 <script>
 /* =====================================================
-   DAPUR DUO — versi tahan-banting
-   - Render papan dibungkus pengaman per-bagian; error
-     dicetak DI KANVAS + kotak error tidak hilang sendiri.
-   - Host menyiarkan state sejak restoran dibuka → tamu
-     langsung masuk, tanpa kebuntuan menunggu.
-   - Papan memperbaiki diri bila tidak lengkap.
+   DAPUR DUO v7-diag
+   - Layar diagnostik otomatis (8 tes, hasil persis).
+   - Banner status host/tamu digambar di kanvas dengan
+     transform identitas → SELALU terlihat walau papan
+     gagal; memisahkan masalah render vs jaringan.
    ===================================================== */
 
 var NOISE=/^Script error$|Blocked a frame with origin|cross-origin frame|ResizeObserver loop/i;
@@ -263,7 +278,7 @@ function showErr(msg,extra){
   msg=String(msg||'');
   if(NOISE.test(msg))return;
   el.classList.remove('hidden');
-  el.innerHTML='<b>Terjadi error — ketuk kotak ini untuk menutup. Salin teks di bawah bila mau lapor:</b><code></code>';
+  el.innerHTML='<b>ERROR — ketuk utk menutup. Salin teks ini bila lapor:</b><code></code>';
   el.querySelector('code').textContent=msg+(extra?(' — '+extra):'');
 }
 addEventListener('error',function(e){
@@ -289,7 +304,6 @@ function dist(x1,y1,x2,y2){return Math.hypot(x2-x1,y2-y1);}
 function rnd(a,b){return a+Math.random()*(b-a);}
 function pick(a){return a[Math.random()*a.length|0];}
 
-// ---------- Konstanta ----------
 var T=64, COLS=10;
 var SC=2.0, PSC=1.7, CSC=1.65;
 var SPD=215, PAT=52, DUR=240;
@@ -302,7 +316,6 @@ var RECIPES={burger:['roti','daging'],pasta:['pasta','saus'],salad:['sayur','tom
 var FIRST={roti:'burger',daging:'burger',pasta:'pasta',saus:'pasta',sayur:'salad',tomat:'salad'};
 var INTERACT={shelf:1,stove:1,plating:1,stack:1,window:1,sink:1,trash:1,table:1,counter:1};
 
-// ---------- Peta dinamis ----------
 var ROWS=15, W=COLS*T, H=ROWS*T, DINROW=9, DOOR={x:4.5*T,y:13.5*T};
 var grid=[], stoves=[], platings=[], tables=[], counters=[];
 function buildMap(rows){
@@ -357,7 +370,6 @@ function tileAt(x,y){return (grid[y]||[])[x];}
 function hitSolid(px,py){var t=tileAt(px/T|0,py/T|0); return !t||t.solid;}
 function isInteractable(t){return !!INTERACT[t.t];}
 
-// ---------- Audio ----------
 var AC=null, sndOn=store.get('dd_snd')!=='0';
 function ac(){ if(!AC) AC=new (window.AudioContext||window.webkitAudioContext)(); if(AC.state==='suspended')AC.resume(); return AC; }
 function tone(f,d,type,v,slide){ if(!sndOn)return; type=type||'square'; v=v||.1;
@@ -381,19 +393,18 @@ var sfx={
   tick:function(){tone(1150,.05,'sine',.06);}
 };
 
-// ---------- State global ----------
 var mode=null, g=null, running=false, selPlayer=0;
 var net=null, netSnap=null, netIn=null, guestPresent=false, startedG=false, resultShown=false;
 var bufA=[false,false], bufE=[false,false], lastA=-1, lastE=-1, aCtr=0, eCtr=0, lastN=-1;
 var lastSent='', lastSentT=0, lastEv=0, lastPush=0, emI=0;
 var pendNetCmd=null, nSeq=0, lastStateAt=0, hadSnap=false, staleWarn=0;
 var netTimers=[];
+var pushN=0, pushErr='';           // untuk banner status host
 var keys={};
 var FX={parts:[],floats:[],marks:[]};
 var hostRoleSel='koki';
-var RERR=null; // error render untuk banner di kanvas
+var RERR=null;
 
-// ---------- Auto-fit ----------
 var dpr=1;
 var cam={x:0,y:0,z:1};
 var cv=$('#cv'), ctx=cv.getContext('2d');
@@ -413,11 +424,9 @@ function fitCam(){
   cam.y=(H-cssH/z)/2;
 }
 
-// ---------- Bentuk dasar ----------
 function rr(c,x,y,w,h,r){c.beginPath();c.moveTo(x+r,y);c.arcTo(x+w,y,x+w,y+h,r);c.arcTo(x+w,y+h,x,y+h,r);c.arcTo(x,y+h,x,y,r);c.arcTo(x,y,x+w,y,r);c.closePath();}
 function ell(c,x,y,rx,ry){c.beginPath();c.ellipse(x,y,rx,ry,0,0,Math.PI*2);}
 
-// ---------- Gambar item ----------
 function drawIng(c,x,y,n,s,ck,bt){
   s=s||1;
   c.save();c.translate(x,y);c.scale(s,s);c.lineWidth=1.2;
@@ -475,7 +484,6 @@ function drawCarry(c,x,y,cb){
   else drawPlate(c,x,y,SC*.7,true);
 }
 
-// ---------- Karakter ----------
 function drawPlayerC(c,x,y,role,face,step,carry,isMe,emote){
   if(isMe){c.save();c.strokeStyle=role==='koki'?'#E9A03B':'#D9472B';c.lineWidth=2.5;
     c.setLineDash([5,4]);ell(c,x,y+4,16*PSC,8.5*PSC);c.stroke();c.restore();}
@@ -521,7 +529,6 @@ function heart(c,x,y,s,col){
 }
 function patCol(r){return 'hsl('+Math.round(r*105)+',55%,42%)';}
 
-// ---------- State game ----------
 function mkP(x,y){return {x:x,y:y,face:0,step:0,c:null,emTxt:'',emT:0,path:null,pend:null,washAuto:false,wash:0};}
 function newGame(hr){
   counters.forEach(function(t){t.item=null;});
@@ -538,7 +545,6 @@ function newGame(hr){
 function resetSlot(s){s.pl=false;s.ing=[];s.rd=false;s.rc=null;}
 function gameSane(){ return !!(g&&g.p&&g.p.length===2&&g.stv&&g.stv.length===stoves.length&&g.tb&&g.tb.length===tables.length); }
 
-// ---------- Pathfinding ----------
 function bfsPath(p,gx,gy){
   var sx=clamp(p.x/T|0,0,COLS-1), sy=clamp(p.y/T|0,0,ROWS-1);
   var start=sy*COLS+sx, goal=gy*COLS+gx;
@@ -616,7 +622,6 @@ function arriveCmd(i){
   doAction(i,{tx:t.x,ty:t.y});
 }
 
-// ---------- Simulasi ----------
 function tryMove(p,dx,dy){
   p.x+=dx;
   if(hitSolid(p.x-13,p.y-9)||hitSolid(p.x+13,p.y-9)||hitSolid(p.x-13,p.y+11)||hitSolid(p.x+13,p.y+11)){
@@ -847,9 +852,7 @@ function endGame(dead){
   showResult(g.res);
 }
 
-// ---------- Snapshot ----------
 function snapState(){
-  if(!g)throw new Error('snapshot: game belum ada');
   var other=g.hr==='koki'?'pelayan':'koki';
   return {rows:ROWS, mt:Date.now(),
     ph:g.ph,t:Math.round(g.t*10)/10,sc:g.sc,ang:g.ang,sv:g.sv,wa:g.wa,pl:g.pl,hr:g.hr,
@@ -883,7 +886,6 @@ function normState(v){
   return v;
 }
 
-// ---------- Render ----------
 var RV=null, RNOW=0, RDT=0;
 function drawTile(t){
   var x=t.x*T,y=t.y*T,cx=x+T/2,cy=y+T/2, c=ctx;
@@ -1001,6 +1003,15 @@ function drawFx(){
     ctx.fillStyle=f.col;ctx.fillText(f.tx,f.x,f.y);ctx.restore(); });
 }
 function ringFor(i){ return mode==='local'?true:(mode==='host'?i===0:i===1); }
+function statusPill(txt,col){
+  ctx.setTransform(1,0,0,1,0,0);
+  ctx.font='700 12px monospace';
+  var w=ctx.measureText(txt).width+18;
+  ctx.fillStyle='rgba(20,16,9,.85)';
+  rr(ctx,8,cv.height-30,w,22,8); ctx.fill();
+  ctx.fillStyle=col; ctx.textAlign='left';
+  ctx.fillText(txt,17,cv.height-15);
+}
 function renderGame(view,isGuest,dt,now){
   try{
     RV=view; RNOW=now; RDT=dt;
@@ -1009,7 +1020,6 @@ function renderGame(view,isGuest,dt,now){
     ctx.fillStyle='#7A5A44'; ctx.fillRect(0,0,cv.width,cv.height);
     var s=dpr*cam.z;
     ctx.setTransform(s,0,0,s,-cam.x*s,-cam.y*s);
-    // lantai + dinding (pengaman: tile rusak dilewati, bukan menggagalkan frame)
     for(var y=0;y<ROWS;y++){ var row=grid[y]; if(!row)continue;
       for(var x=0;x<COLS;x++){ var t=row[x]; if(!t)continue; var px=x*T, py=y*T;
         if(t.t==='wall'){ ctx.fillStyle='#7A5A44'; ctx.fillRect(px,py,T,T);
@@ -1021,7 +1031,6 @@ function renderGame(view,isGuest,dt,now){
           var off=((x*7+y*13)%3+1)*16; ctx.moveTo(px+off,py); ctx.lineTo(px+off,py+T); ctx.stroke(); }
       }
     }
-    // objek fancy per tile — kalau satu gagal, sisanya tetap tergambar
     for(var y2=0;y2<ROWS;y2++){ var row2=grid[y2]; if(!row2)continue;
       for(var x2=0;x2<COLS;x2++){ var t2=row2[x2]; if(!t2||t2.t==='floorD'||t2.t==='floorF'||t2.t==='wall')continue;
         try{ drawTile(t2); }
@@ -1064,16 +1073,23 @@ function renderGame(view,isGuest,dt,now){
     });
     try{ drawFx(); }catch(e){}
   }catch(e){ RERR='render: '+((e&&e.message)||e); }
-  // Banner error DI ATAS KANVAS — selalu terlihat
   if(RERR){
     ctx.setTransform(1,0,0,1,0,0);
     var bw=Math.min(cv.width-16,560);
     ctx.fillStyle='rgba(217,71,43,.95)';
     rr(ctx,8,cv.height-58,bw,50,10); ctx.fill();
     ctx.fillStyle='#FFF6EA'; ctx.font='700 13px monospace'; ctx.textAlign='left';
-    ctx.fillText('RENDER ERROR (laporkan teks ini):',20,cv.height-38);
+    ctx.fillText('RENDER ERROR (laporkan):',20,cv.height-38);
     ctx.fillText(String(RERR).slice(0,70),20,cv.height-18);
     RERR=null;
+  }
+  // ===== BANNER STATUS (transform identitas — selalu terlihat) =====
+  if(mode==='host'&&net){
+    var htxt='HOST '+net.code+' · push#'+pushN+(pushErr?(' · ERR:'+String(pushErr).slice(0,40)):' · OK')+' · tamu:'+(guestPresent?'MASUK':'belum');
+    statusPill(htxt, pushErr?'#FF9B8A':'#9FE0A8');
+  }else if(mode==='guest'&&net){
+    var age=lastStateAt?Math.round((Date.now()-lastStateAt)/1000):'-';
+    statusPill('TAMU '+net.code+' · data '+age+'s lalu'+(hadSnap?'':' · BELUM ADA'), age>6?'#FF9B8A':'#9FE0A8');
   }
 }
 function upFx(dt){
@@ -1084,7 +1100,6 @@ function upFx(dt){
   for(var i3=FX.marks.length-1;i3>=0;i3--){ FX.marks[i3].t-=dt; if(FX.marks[i3].t<=0)FX.marks.splice(i3,1); }
 }
 
-// ---------- Smoothing posisi untuk tamu ----------
 var VS={p:[{init:false,x:0,y:0,step:0},{init:false,x:0,y:0,step:0}],cs:{}};
 function guestView(sn,dt){
   for(var i=0;i<2;i++){ var tp=sn.p[i], sp=VS.p[i];
@@ -1104,7 +1119,6 @@ function guestView(sn,dt){
     cs:(sn.cs||[]).map(function(cu){var o=VS.cs[cu.id];var cc={};for(var kk in cu)cc[kk]=cu[kk];cc.x=o.x;cc.y=o.y;return cc;})};
 }
 
-// ---------- Input: keyboard ----------
 var PREVENT=['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Enter'];
 addEventListener('keydown',function(e){
   if(mode&&PREVENT.indexOf(e.code)>=0)e.preventDefault();
@@ -1130,7 +1144,6 @@ function netInDerived(){
     aHeld:!!netIn.h,aBuf:!!bufA[1],eBuf:!!bufE[1]};
 }
 
-// ---------- Input: ketuk / klik ----------
 function canvasPos(e){
   var r=cv.getBoundingClientRect();
   return {x:(e.clientX-r.left)/cam.z+cam.x, y:(e.clientY-r.top)/cam.z+cam.y};
@@ -1172,9 +1185,7 @@ cv.addEventListener('pointerdown',function(e){
   try{handleTap(p.x,p.y);}catch(err){showErr((err&&err.message)||String(err));}
 });
 
-/* =====================================================
-   JARINGAN: REST API Firebase (tanpa SDK)
-   ===================================================== */
+/* ===== Jaringan: REST API Firebase ===== */
 var DBU='https://cook-cd6fb-default-rtdb.asia-southeast1.firebasedatabase.app';
 function dbUrl(p){ return DBU+'/'+p+'.json'; }
 async function dbReq(path,method,val){
@@ -1193,7 +1204,7 @@ async function dbReq(path,method,val){
     return txt?JSON.parse(txt):null;
   }catch(e){
     clearTimeout(t);
-    if(e&&e.name==='AbortError')throw new Error('Koneksi ke server lambat/diblokir. Unduh file .html ini lalu buka langsung di Chrome.');
+    if(e&&e.name==='AbortError')throw new Error('Server lambat/diblokir (timeout 9 dtk)');
     throw e;
   }
 }
@@ -1203,9 +1214,7 @@ var FB={
 };
 function netErrMsg(e){
   var m=(e&&(e.message||e.code))||String(e);
-  if(/permission/i.test(m))return 'Akses ditolak — di Firebase console, Realtime Database → Rules, izinkan read/write untuk "rooms" lalu Publish.';
-  if(/lambat|diblokir|unduh/i.test(m))return m;
-  if(/network|fetch|Failed to fetch|load/i.test(m))return 'Koneksi bermasalah — periksa internet lalu coba lagi.';
+  if(/permission/i.test(m))return 'Akses ditolak — Firebase console → Realtime Database → Rules, izinkan "rooms" lalu Publish.';
   return 'Gagal: '+m;
 }
 var ALPHA='ABCDEFGHJKMNPQRSTUVWXYZ';
@@ -1221,13 +1230,16 @@ function leaveNet(){
   net=null;netSnap=null;netIn=null;guestPresent=false;startedG=false;resultShown=false;
   hadSnap=false;lastStateAt=0;staleWarn=0;
   lastA=-1;lastE=-1;lastN=-1;aCtr=0;eCtr=0;lastEv=0;lastSent='';pendNetCmd=null;
+  pushN=0;pushErr='';
 }
 function pushState(){ if(!net||!net.isHost||!g)return;
-  FB.put('rooms/'+net.code+'/state',snapState()).catch(function(){}); }
-function maybePush(){ var n2=performance.now(); if(n2-lastPush>66){lastPush=n2;pushState();} }
+  pushN++;
+  FB.put('rooms/'+net.code+'/state',snapState())
+    .then(function(){pushErr='';})
+    .catch(function(e){pushErr=(e&&e.message)||String(e);}); }
+function maybePush(){ var n2=performance.now(); if(n2-lastPush>150){lastPush=n2;pushState();} }
 function netLost(msg){ toast(msg); exitToTitle(); }
 
-// Host: kehadiran tamu + input tamu
 async function hostTick(){
   if(!net||!net.isHost)return;
   try{
@@ -1252,18 +1264,15 @@ async function hostTick(){
     }
   }catch(e){}
 }
-// Tamu: ambil state
 async function guestTick(){
   if(!net||net.isHost)return;
   try{
     var st=await FB.get('rooms/'+net.code+'/state');
     if(st){netSnap=normState(st)||netSnap;lastStateAt=Date.now();hadSnap=true;}
-    else if(hadSnap){netLost('Host menutup ruangan.');}
   }catch(e){}
 }
 
-// ---------- Flow layar ----------
-var SCREENS=['scrTitle','scrLobby','scrBrief','scrResult'];
+var SCREENS=['scrTitle','scrDiag','scrLobby','scrBrief','scrResult'];
 function show(id){SCREENS.forEach(function(s){var el=$('#'+s);if(el)el.classList.toggle('hidden',s!==id);});
   if(id)titleOn(id==='scrTitle');}
 function hideScreens(){SCREENS.forEach(function(s){var el=$('#'+s);if(el)el.classList.add('hidden');});}
@@ -1303,18 +1312,15 @@ function countdown(cb){
 }
 function resetFX(){FX.parts.length=0;FX.floats.length=0;FX.marks.length=0;VS.p.forEach(function(s){s.init=false;});VS.cs={};}
 function startShift(){
-  hideScreens(); enterGameUI();
-  ensureMap();
   try{
+    hideScreens(); enterGameUI();
+    ensureMap();
     g=newGame(mode==='local'?'koki':(net?net.role:'koki'));
-  }catch(e){
-    showErr('Gagal menyiapkan papan: '+((e&&e.message)||e));
-    exitToTitle(); return;
-  }
-  if(!gameSane()){ buildMap(15); g=newGame(mode==='local'?'koki':(net?net.role:'koki')); }
-  resetFX();
-  countdown(function(){ running=true; if(mode==='host')pushState(); });
-  if(mode==='host')pushState(); // state tersedia sejak sekarang → tamu bisa masuk
+    if(!gameSane()){ buildMap(15); g=newGame(mode==='local'?'koki':(net?net.role:'koki')); }
+    resetFX();
+    countdown(function(){ running=true; if(mode==='host')pushState(); });
+    if(mode==='host')pushState();
+  }catch(e){ showErr('Mulai: '+((e&&e.message)||e)); exitToTitle(); }
 }
 function showBrief(briefMode){
   show('scrBrief');
@@ -1331,7 +1337,6 @@ function showBrief(briefMode){
     : 'Keyboard (opsional): <kbd>Panah</kbd>+<kbd>Enter</kbd>';
 }
 
-// ---------- Hasil ----------
 function starSVG(f){return '<svg viewBox="0 0 24 24" width="36" height="36"><path d="M12 2l2.9 6.2 6.6.8-4.9 4.6 1.3 6.6L12 17l-5.9 3.2 1.3-6.6L2.5 9l6.6-.8z" fill="'+(f?'#E9A03B':'none')+'" stroke="#241B13" stroke-width="1.6" stroke-linejoin="round"/></svg>';}
 function showResult(res){
   res=res||{}; running=false;
@@ -1346,16 +1351,16 @@ function showResult(res){
   show('scrResult');
 }
 function again(){
-  hideScreens(); enterGameUI();
-  ensureMap();
-  try{ g=newGame(mode==='local'?'koki':(net?net.role:'koki')); }
-  catch(e){ showErr('Gagal menyiapkan papan: '+((e&&e.message)||e)); exitToTitle(); return; }
-  resetFX();
-  countdown(function(){ running=true; if(mode==='host')pushState(); });
-  if(mode==='host')pushState();
+  try{
+    hideScreens(); enterGameUI();
+    ensureMap();
+    g=newGame(mode==='local'?'koki':(net?net.role:'koki'));
+    resetFX();
+    countdown(function(){ running=true; if(mode==='host')pushState(); });
+    if(mode==='host')pushState();
+  }catch(e){ showErr('Mulai: '+((e&&e.message)||e)); exitToTitle(); }
 }
 
-// ---------- Loop utama ----------
 var last=0, lastFrameErr='';
 function frame(ts){
   requestAnimationFrame(frame);
@@ -1364,7 +1369,6 @@ function frame(ts){
   upFx(dt);
   try{
     if(mode==='local'||mode==='host'){
-      // perbaikan mandiri: papan hilang/rusak → buat ulang
       if(!g||!gameSane()){
         ensureMap();
         try{ g=newGame(mode==='local'?'koki':(net?net.role:'koki')); }catch(e){}
@@ -1375,7 +1379,7 @@ function frame(ts){
         sim(dt,[readLocal(0),mode==='local'?readLocal(1):netInDerived()]);
         bufA=[false,false];bufE=[false,false];
       }
-      if(mode==='host'&&g)maybePush(); // sinkron jalan sejak restoran dibuka
+      if(mode==='host'&&g)maybePush();
       if(g)renderGame(snapState(),false,dt,now);
     }else if(mode==='guest'){
       var sn=netSnap;
@@ -1416,7 +1420,6 @@ function sendInputNow(){
     FB.put('rooms/'+net.code+'/guestInput',v).catch(function(){});}
 }
 
-// ---------- HUD ----------
 var lastScore=null;
 function updateHUD(){
   var s;
@@ -1435,7 +1438,6 @@ function updateHUD(){
   if(mode!=='local')$('#netDot').style.background=(mode==='host'?guestPresent:true)?'#71823B':'#D9472B';
 }
 
-// ---------- Kartu judul mini ----------
 var titleFlag=false;
 function titleOn(v){
   titleFlag=v;
@@ -1455,11 +1457,51 @@ function titleOn(v){
     requestAnimationFrame(loop);}
 }
 
-// ---------- Tombol ----------
+/* ===== Diagnostik ===== */
+async function runDiag(){
+  var out=$('#diagOut');
+  out.textContent='Menjalankan tes…\n';
+  function w(s){ out.textContent+=s+'\n'; out.scrollTop=out.scrollHeight; }
+  w('Lingkungan: '+(window.self!==window.top?'DALAM IFRAME/pratinjau (rawan blokir)':'dibuka langsung (bagus)'));
+  // 1 canvas
+  try{ var t1=cv.getContext('2d'); t1.fillStyle='#f00'; t1.fillRect(0,0,2,2); w('✓ Canvas 2D'); }
+  catch(e){ w('✗ Canvas 2D — '+((e&&e.message)||e)); }
+  // 2 peta
+  try{ buildMap(15);
+    w((tables.length===3&&stoves.length===2&&grid.length?'✓':'✗')+' Peta — baris:'+ROWS+' meja:'+tables.length+' kompor:'+stoves.length+' konter:'+counters.length); }
+  catch(e){ w('✗ Peta — '+((e&&e.message)||e)); }
+  // 3 objek game
+  var gg=null;
+  try{ gg=newGame('koki'); w((gg&&gg.p.length===2?'✓':'✗')+' Objek game dibuat'); }
+  catch(e){ w('✗ Objek game — '+((e&&e.message)||e)); }
+  // 4 snapshot
+  var oldG=g;
+  try{ g=gg; var ss=snapState(); var sz=JSON.stringify(ss).length; g=oldG;
+    w('✓ Snapshot OK ('+sz+' byte)'); }
+  catch(e){ g=oldG; w('✗ SNAPSHOT — '+((e&&e.message)||e)+'  <-- kalau gagal di sini, inilah biangnya'); }
+  // 5 render 1 frame
+  try{ g=gg; mode='local'; renderGame(snapState(),false,0.016,1); mode=null; g=oldG;
+    w('✓ Render 1 frame tanpa error'); }
+  catch(e){ g=oldG; mode=null; w('✗ Render — '+((e&&e.message)||e)); }
+  // 6 tulis firebase
+  try{ await FB.put('diagtest',{t:Date.now()}); w('✓ Tulis ke Firebase'); }
+  catch(e){ w('✗ Tulis Firebase — '+((e&&e.message)||e)); }
+  // 7 baca firebase
+  try{ var v=await FB.get('diagtest');
+    w((v?'✓':'✗')+' Baca dari Firebase'+(v?' (nilai kembali)':' (KOSONG — Rules menelan tulisan?)')); }
+  catch(e){ w('✗ Baca Firebase — '+((e&&e.message)||e)); }
+  // 8 hapus
+  try{ await FB.put('diagtest',null); w('✓ Bersih-bersih node tes'); }catch(e){}
+  w('\nSelesai. Foto layar ini & kirim.');
+}
+
 function bind(id,fn){var b=$(id);if(!b)return;
   b.addEventListener('click',function(){fn();try{ac();}catch(e){}if(b.blur)b.blur();});}
 bind('#btnLocal',function(){mode='local';showBrief('local');});
 bind('#btnOnline',function(){show('scrLobby');resetLobby();});
+bind('#btnDiag',function(){show('scrDiag');runDiag();});
+bind('#btnDiagRun',function(){runDiag();});
+bind('#btnDiagBack',function(){show('scrTitle');});
 function resetLobby(){$('#lobMain').classList.remove('hidden');$('#lobHost').classList.add('hidden');
   $('#lobGuest').classList.add('hidden');$('#lobStatus').textContent='';$('#joinCode').value='';
   $('#hostStat').textContent='Pemain 2: menunggu…';}
@@ -1475,7 +1517,7 @@ bind('#btnCreate',async function(){
     leaveNet();
     net={isHost:true,code:mkCode(),role:hostRoleSel,guestIn:false};
     await FB.put('rooms/'+net.code,{meta:{role:net.role,mt:Date.now()}});
-    netTimers.push(setInterval(hostTick,200));
+    netTimers.push(setInterval(hostTick,250));
     netTimers.push(setInterval(function(){
       if(net&&net.isHost)FB.put('rooms/'+net.code+'/meta',{role:net.role,mt:Date.now()}).catch(function(){});
     },4000));
@@ -1501,7 +1543,7 @@ bind('#btnJoin',async function(){
     if(!m){$('#lobStatus').textContent='Ruangan tidak ditemukan.';return;}
     net={isHost:false,code:code,role:m.role==='koki'?'pelayan':'koki'};
     await FB.put('rooms/'+code+'/guest',{ts:Date.now()});
-    netTimers.push(setInterval(guestTick,180));
+    netTimers.push(setInterval(guestTick,200));
     netTimers.push(setInterval(function(){
       if(net&&!net.isHost)FB.put('rooms/'+code+'/guest',{ts:Date.now()}).catch(function(){});
     },2500));
