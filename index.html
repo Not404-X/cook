@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Dapur Duo — Kerja Sama Dua Pegawai Restoran</title>
 <link href="https://fonts.googleapis.com/css2?family=Bungee&family=Chivo:wght@400;700;900&display=swap" rel="stylesheet">
+<!-- Firebase via script klasik (kompatibel iframe sandbox & file://) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js" onerror="window.__fbFail=1"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js" onerror="window.__fbFail=1"></script>
 <style>
 :root{
   --krem:#F4ECDC; --krem2:#EAE0C9; --tinta:#241B13; --coklat:#2A1F17;
@@ -169,8 +172,9 @@ label.lb{display:block; font-size:12px; font-weight:900; letter-spacing:1.5px; c
       <p class="mini" style="text-align:center;margin:2px 0 14px">Bagikan kode ini ke temanmu</p>
       <div class="row">
         <button class="btn alt" id="btnCopy" style="flex:1">Salin</button>
-        <button class="btn" id="btnToBrief" disabled style="flex:1">Lanjut</button>
+        <button class="btn" id="btnToBrief" style="flex:1">Lanjut</button>
       </div>
+      <p class="stat" id="hostStat">Temanmu boleh gabung kapan saja — bahkan saat permainan sudah berjalan.</p>
     </div>
     <div id="lobGuest" class="hidden">
       <p class="stat"><b>Terhubung!</b> Menunggu host mulai<span class="dots"></span></p>
@@ -240,7 +244,7 @@ label.lb{display:block; font-size:12px; font-weight:900; letter-spacing:1.5px; c
     <div id="toast"></div>
     <div id="hintOvl"></div>
     <div id="count" class="hidden"></div>
-    <div id="waitOvl" class="hidden"><div class="card">Menunggu Pemain 2 kembali…<small>koneksi temanmu terputus sejenak</small></div></div>
+    <div id="waitOvl" class="hidden"><div class="card">Menunggu Pemain 2…<small>bagikan kode ruangan — temanmu bisa gabung kapan saja</small></div></div>
   </div>
 </div>
 
@@ -249,22 +253,32 @@ label.lb{display:block; font-size:12px; font-weight:900; letter-spacing:1.5px; c
 <script>
 /* =====================================================
    DAPUR DUO
-   - FIX: array "tables" tidak terisi saat peta dibangun
-     → pelanggan tak pernah muncul. Sekarang terisi.
-   - Pita cokelat atas hilang: jumlah baris peta dihitung
-     dari ukuran STAGE yang benar-benar terukur, dan
-     tersinkron ke tamu lewat Firebase.
+   - Firebase kini via <script> klasik (compat) di <head>,
+     BUKAN import() — memperbaiki SecurityError
+     "Blocked a frame with origin null" pada pratinjau
+     ber-iframe sandbox.
+   - Error noise sandbox difilter dari pelapor.
    ===================================================== */
 
+var NOISE=/Blocked a frame with origin|cross-origin frame/i;
 function showErr(msg,extra){
   var el=document.getElementById('errBox'); if(!el)return;
+  if(NOISE.test(msg))return; // noise lingkungan pratinjau — abaikan
   el.classList.remove('hidden');
   el.innerHTML='<b>Terjadi error — ketuk kotak ini untuk menutup, atau salin teks di bawah lalu kirim:</b><code></code>';
   el.querySelector('code').textContent=msg+(extra?(' — '+extra):'');
-  clearTimeout(showErr._t); showErr._t=setTimeout(function(){el.classList.add('hidden');},15000);
+  clearTimeout(showErr._t); showErr._t=setTimeout(function(){el.classList.add('hidden');},20000);
 }
-addEventListener('error',function(e){showErr((e&&e.message)||'unknown', e&&e.lineno?('baris '+e.lineno):'');});
-addEventListener('unhandledrejection',function(e){var r=e&&e.reason||{};showErr(r.message||String(r));});
+addEventListener('error',function(e){
+  var m=(e&&e.message)||'';
+  if(NOISE.test(m))return;
+  showErr(m||'unknown', e&&e.lineno?('baris '+e.lineno):'');
+});
+addEventListener('unhandledrejection',function(e){
+  var r=e&&e.reason||{}, m=(r&&(r.message||r.code))||String(r);
+  if(NOISE.test(m))return;
+  showErr(m);
+});
 document.getElementById('errBox').addEventListener('click',function(){this.classList.add('hidden');});
 
 try{
@@ -296,13 +310,14 @@ var INTERACT={shelf:1,stove:1,plating:1,stack:1,window:1,sink:1,trash:1,table:1,
 var ROWS=15, W=COLS*T, H=ROWS*T, DINROW=9, DOOR={x:4.5*T,y:13.5*T};
 var grid=[], stoves=[], platings=[], tables=[], counters=[];
 function buildMap(rows){
+  rows=clamp(rows|0,13,24);
   ROWS=rows; W=COLS*T; H=ROWS*T;
   grid=[];stoves=[];platings=[];tables=[];counters=[];
   var y,x;
   for(y=0;y<ROWS;y++){ grid[y]=[];
     for(x=0;x<COLS;x++) grid[y][x]={t:'floorD',x:x,y:y,solid:false};
   }
-  function put(px,py,o){grid[py][px]=o;}
+  function put(px,py,o){ if(grid[py]) grid[py][px]=o; }
   for(x=0;x<COLS;x++){ put(x,0,{t:'wall',x:x,y:0,solid:true}); put(x,ROWS-1,{t:'wall',x:x,y:ROWS-1,solid:true}); }
   var names=['roti','daging','pasta','saus','sayur','tomat'];
   names.forEach(function(n,i){ put(i+1,1,{t:'shelf',x:i+1,y:1,solid:true,n:n}); });
@@ -324,29 +339,27 @@ function buildMap(rows){
   if(DINROW+1>d1)DINROW=d1-1;
   [3,5,7].forEach(function(tx,i){
     var tb={t:'table',x:tx,y:DINROW,solid:true,i:i};
-    put(tx,DINROW,tb); tables.push(tb);                       // FIX: tables kini terisi
+    put(tx,DINROW,tb); tables.push(tb);
     put(tx,DINROW+1,{t:'seat',x:tx,y:DINROW+1,solid:true});
   });
   tables.forEach(function(tb){tb.sx=tb.x*T+T/2; tb.sy=(tb.y+1)*T+T/2;});
   put(4,ROWS-1,{t:'door',x:4,y:ROWS-1,solid:true});
   DOOR={x:4.5*T, y:(ROWS-1.35)*T};
 }
+function ensureMap(){
+  try{
+    var st=$('#stage');
+    var w=st.clientWidth||400, h=st.clientHeight||600;
+    var rows=clamp(Math.round(h/Math.max(1,w)*COLS),13,24);
+    if(rows!==ROWS||!grid.length||!tables.length)buildMap(rows);
+  }catch(e){ buildMap(15); }
+  if(!grid.length||!tables.length)buildMap(15);
+}
+buildMap(15);
 function walkY(){return (DINROW+2.45)*T;}
 function tileAt(x,y){return (grid[y]||[])[x];}
 function hitSolid(px,py){var t=tileAt(px/T|0,py/T|0); return !t||t.solid;}
 function isInteractable(t){return !!INTERACT[t.t];}
-
-// Ukur stage yang BENAR-BENAR tampil, lalu sesuaikan jumlah baris
-function ensureMap(rowsOverride){
-  var rows=rowsOverride;
-  if(!rows){
-    var st=$('#stage');
-    var w=st.clientWidth||400, h=st.clientHeight||600;
-    rows=clamp(Math.round(h/Math.max(1,w)*COLS),13,24);
-  }
-  if(rows!==ROWS||!grid.length||!tables.length)buildMap(rows);
-}
-buildMap(15); // nilai awal; akan diukur ulang saat masuk game
 
 // ---------- Audio ----------
 var AC=null, sndOn=store.get('dd_snd')!=='0';
@@ -382,7 +395,7 @@ var keys={};
 var FX={parts:[],floats:[],marks:[]};
 var hostRoleSel='koki';
 
-// ---------- Auto-fit: seluruh peta terlihat ----------
+// ---------- Auto-fit ----------
 var dpr=1;
 var cam={x:0,y:0,z:1};
 var cv=$('#cv'), ctx=cv.getContext('2d');
@@ -395,6 +408,7 @@ function fitCanvas(){
 function fitCam(){
   var cssW=cv.clientWidth||800, cssH=cv.clientHeight||500;
   var z=Math.min(cssW/W, cssH/H);
+  if(!(z>0.05))z=0.5;
   if(z>1.5)z=1.5;
   cam.z=z;
   cam.x=(W-cssW/z)/2;
@@ -852,7 +866,7 @@ function snapState(){
 }
 function normState(v){
   if(!v||!Array.isArray(v.p)||v.p.length<2)return null;
-  if(v.rows&&v.rows!==ROWS)buildMap(v.rows); // tamu memakai papan identik dgn host
+  if(v.rows&&v.rows!==ROWS)buildMap(v.rows);
   function arr(a,d){return Array.isArray(a)?a:d;}
   var sv=arr(v.stv,[]);
   v.stv=[]; for(var i=0;i<stoves.length;i++)v.stv.push(sv[i]||null);
@@ -1132,32 +1146,35 @@ cv.addEventListener('pointerdown',function(e){
   try{handleTap(p.x,p.y);}catch(err){showErr((err&&err.message)||String(err));}
 });
 
-// ---------- Firebase (config tertanam) ----------
-var DEFAULT_CFG={apiKey:"AIzaSyDUSPh2DzpFv3DhQhMr31vZUDdhLYAI99w",
-  authDomain:"cook-cd6fb.firebaseapp.com",
-  databaseURL:"https://cook-cd6fb-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId:"cook-cd6fb",
-  storageBucket:"cook-cd6fb.firebasestorage.app",
-  messagingSenderId:"1029937989505",
-  appId:"1:1029937989505:web:3cbeac57dfbbe344c4ca80"};
+// ---------- Firebase (compat, config tertanam) ----------
+var DEFAULT_CFG={databaseURL:"https://cook-cd6fb-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId:"cook-cd6fb"};
 var FB=null;
 function netErrMsg(e){
   var m=(e&&(e.code||e.message))||String(e);
   if(/permission/i.test(m))return 'Akses ditolak — di Firebase console, Realtime Database → Rules, izinkan read/write untuk "rooms" lalu Publish.';
+  if(/tidak termuat|memuat pustaka/i.test(m))return m;
   if(/network|fetch|Failed to fetch|load/i.test(m))return 'Koneksi bermasalah — periksa internet lalu coba lagi.';
   return 'Gagal: '+m;
 }
 async function ensureFB(){
   if(FB)return FB;
-  var appM,dbM;
+  if(window.__fbFail||!window.firebase||!firebase.database){
+    throw new Error('Pustaka Firebase tidak termuat. Cek internet; kalau muncul terus di pratinjau chat, simpan file .html ini dan buka langsung di Chrome.');
+  }
   try{
-    var mods=await Promise.all([
-      import('https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js'),
-      import('https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js')]);
-    appM=mods[0]; dbM=mods[1];
-  }catch(e){ throw new Error('Tidak dapat memuat pustaka Firebase — periksa internet. ('+((e&&e.message)||e)+')'); }
-  var app=appM.initializeApp(DEFAULT_CFG), db=dbM.getDatabase(app);
-  FB={db:db,ref:dbM.ref,set:dbM.set,get:dbM.get,onValue:dbM.onValue,remove:dbM.remove,onDisconnect:dbM.onDisconnect};
+    if(!firebase.apps||!firebase.apps.length) firebase.initializeApp(DEFAULT_CFG);
+  }catch(e){ if(!/already exists/i.test(e.message||'')) throw e; }
+  var db=firebase.database();
+  FB={
+    db:db,
+    ref:function(_db,path){ return db.ref(path); },
+    set:function(r,v){ return r.set(v); },
+    get:function(r){ return r.get(); },
+    remove:function(r){ return r.remove(); },
+    onValue:function(r,cb){ r.on('value',cb); return function(){ r.off('value',cb); }; },
+    onDisconnect:function(r){ return r.onDisconnect(); }
+  };
   return FB;
 }
 var ALPHA='ABCDEFGHJKMNPQRSTUVWXYZ';
@@ -1197,7 +1214,7 @@ function enterGameUI(){
   $('#hud').classList.remove('hidden');$('#stage').classList.remove('hidden');
   $('#chipNet').classList.toggle('hidden',mode==='local');
   selPlayer = mode==='guest'?1:0;
-  if(mode!=='local')$('#vNet').textContent='Ruang '+net.code+' · kamu '+net.role;
+  if(mode!=='local'&&net)$('#vNet').textContent='Ruang '+net.code+' · kamu '+net.role;
   fitCanvas(); fitCam();
   showHint(defaultHint());
 }
@@ -1219,14 +1236,16 @@ function countdown(cb){
 }
 function resetFX(){FX.parts.length=0;FX.floats.length=0;FX.marks.length=0;VS.p.forEach(function(s){s.init=false;});VS.cs={};}
 function startShift(){
-  if(mode==='host'&&net&&!net.guestIn){
-    $('#briefNote').innerHTML='<b>Tunggu pemain 2 masuk dulu!</b>'; sfx.err(); return;
+  hideScreens(); enterGameUI();
+  ensureMap();
+  try{
+    g=newGame(mode==='local'?'koki':(net?net.role:'koki'));
+  }catch(e){
+    showErr('Gagal menyiapkan papan: '+((e&&e.message)||e));
+    exitToTitle(); return;
   }
-  hideScreens(); enterGameUI();   // tampilkan dulu → stage terukur
-  ensureMap();                    // peta sesuai layar sungguhan
-  g=newGame(mode==='local'?'koki':net.role);
   resetFX();
-  countdown(function(){running=true;if(mode==='host')pushState();});
+  countdown(function(){ running=true; if(mode==='host')pushState(); });
 }
 function showBrief(briefMode){
   show('scrBrief');
@@ -1260,42 +1279,48 @@ function showResult(res){
 function again(){
   hideScreens(); enterGameUI();
   ensureMap();
-  g=newGame(mode==='local'?'koki':net.role);
+  try{ g=newGame(mode==='local'?'koki':(net?net.role:'koki')); }
+  catch(e){ showErr('Gagal menyiapkan papan: '+((e&&e.message)||e)); exitToTitle(); return; }
   resetFX();
-  countdown(function(){running=true;if(mode==='host')pushState();});
+  countdown(function(){ running=true; if(mode==='host')pushState(); });
 }
 
 // ---------- Loop utama ----------
-var last=0;
+var last=0, lastFrameErr='';
 function frame(ts){
   requestAnimationFrame(frame);
   var dt=Math.min(.05,(ts-last)/1000||0);last=ts;
   var now=ts/1000;
   upFx(dt);
-  if(mode==='local'||mode==='host'){
-    var paused=(mode==='host'&&running&&!guestPresent);
-    $('#waitOvl').classList.toggle('hidden',!paused);
-    if(running&&!paused){
-      sim(dt,[readLocal(0),mode==='local'?readLocal(1):netInDerived()]);
-      bufA=[false,false];bufE=[false,false];
-      if(mode==='host')maybePush();
+  try{
+    if(mode==='local'||mode==='host'){
+      var paused=(mode==='host'&&running&&!guestPresent);
+      $('#waitOvl').classList.toggle('hidden',!paused);
+      if(running&&!paused){
+        sim(dt,[readLocal(0),mode==='local'?readLocal(1):netInDerived()]);
+        bufA=[false,false];bufE=[false,false];
+      }
+      if(mode==='host'&&running)maybePush();
+      if(g)renderGame(snapState(),false,dt,now);
+    }else if(mode==='guest'){
+      var sn=netSnap;
+      if(sn&&sn.p){
+        if(sn.ev&&sn.ev.id!==lastEv){lastEv=sn.ev.id;
+          floatL(sn.ev.x,sn.ev.y,sn.ev.tx,EVCOL[sn.ev.k]||'#5E7F35');
+          var sMap={serve:sfx.serve,angry:sfx.angry,wash:sfx.pop,ding:sfx.ding,ready:sfx.ding};
+          if(sMap[sn.ev.k])sMap[sn.ev.k]();}
+        if(sn.ph==='play'&&!startedG){ startedG=true;hideScreens();enterGameUI();resetFX();running=true; }
+        else if(sn.ph==='play'&&resultShown){ resultShown=false;hideScreens();enterGameUI();running=true; }
+        else if(sn.ph==='end'&&!resultShown){ resultShown=true;running=false;showResult(sn.res||{}); }
+        if(running)renderGame(guestView(sn,dt),true,dt,now);
+        sendInputNow();
+      }
     }
-    if(g)renderGame(snapState(),false,dt,now);
-  }else if(mode==='guest'){
-    var sn=netSnap;
-    if(sn&&sn.p){
-      if(sn.ev&&sn.ev.id!==lastEv){lastEv=sn.ev.id;
-        floatL(sn.ev.x,sn.ev.y,sn.ev.tx,EVCOL[sn.ev.k]||'#5E7F35');
-        var sMap={serve:sfx.serve,angry:sfx.angry,wash:sfx.pop,ding:sfx.ding,ready:sfx.ding};
-        if(sMap[sn.ev.k])sMap[sn.ev.k]();}
-      if(sn.ph==='play'&&!startedG){ startedG=true;hideScreens();enterGameUI();resetFX();running=true; }
-      else if(sn.ph==='play'&&resultShown){ resultShown=false;hideScreens();enterGameUI();running=true; }
-      else if(sn.ph==='end'&&!resultShown){ resultShown=true;running=false;showResult(sn.res||{}); }
-      if(running)renderGame(guestView(sn,dt),true,dt,now);
-      sendInputNow();
-    }
+    if(mode)updateHUD();
+  }catch(e){
+    var m=(e&&e.message)||String(e);
+    if(!NOISE.test(m)&&m!==lastFrameErr){ lastFrameErr=m; showErr(m,'(loop)'); }
   }
-  if(mode)updateHUD();
 }
 requestAnimationFrame(frame);
 
@@ -1356,7 +1381,8 @@ function bind(id,fn){var b=$(id);if(!b)return;
 bind('#btnLocal',function(){mode='local';showBrief('local');});
 bind('#btnOnline',function(){show('scrLobby');resetLobby();});
 function resetLobby(){$('#lobMain').classList.remove('hidden');$('#lobHost').classList.add('hidden');
-  $('#lobGuest').classList.add('hidden');$('#lobStatus').textContent='';$('#joinCode').value='';}
+  $('#lobGuest').classList.add('hidden');$('#lobStatus').textContent='';$('#joinCode').value='';
+  $('#btnToBrief').disabled=false;$('#hostStat').textContent='';}
  $('#roleSeg').addEventListener('click',function(e){
   var b=e.target.closest('button');if(!b)return;
   hostRoleSel=b.dataset.r;
@@ -1373,24 +1399,34 @@ bind('#btnCreate',async function(){
     await FB.set(FB.ref(FB.db,base),{meta:{role:net.role,c:Date.now()}});
     try{FB.onDisconnect(FB.ref(FB.db,base)).remove().catch(function(){});}catch(e){}
     unsubs.push(FB.onValue(FB.ref(FB.db,base+'/guest'),function(s){
-      if(s.exists()&&net&&net.isHost&&!net.guestIn){net.guestIn=true;guestPresent=true;
-        $('#btnToBrief').disabled=false;sfx.pop();}
+      if(!net||!net.isHost)return;
+      if(s.exists()){
+        net.guestIn=true;guestPresent=true;
+        $('#hostStat').innerHTML='<b>Pemain 2 masuk!</b>';
+      }else{
+        guestPresent=false;
+      }
     }));
     unsubs.push(FB.onValue(FB.ref(FB.db,base+'/guestInput'),function(s){
       var v=s.val();if(!v)return;netIn=v;
       if(v.n!==undefined&&v.n!==lastN){ lastN=v.n;
-        if(v.em){if(running)doEmote(1);}
+        if(v.em){if(running&&g)doEmote(1);}
         else if(v.tx>=0&&running)commandTo(1,v.tx,v.ty);
       }
       if(v.a!==lastA){lastA=v.a;bufA[1]=true;}
       if(v.e!==lastE){lastE=v.e;bufE[1]=true;}
     }));
     $('#lobMain').classList.add('hidden');$('#lobHost').classList.remove('hidden');
-    $('#codeTxt').textContent=net.code;$('#btnToBrief').disabled=true;
+    $('#codeTxt').textContent=net.code;
+    $('#hostStat').textContent='Temanmu boleh gabung kapan saja — bahkan saat permainan sudah berjalan.';
     $('#lobStatus').textContent='';
   }catch(e){$('#lobStatus').textContent=netErrMsg(e);}
 });
-bind('#btnCopy',async function(){try{await navigator.clipboard.writeText(net.code);toast('Kode disalin!');}catch(e){}});
+bind('#btnCopy',async function(){
+  var c=net?net.code:'';
+  try{ await navigator.clipboard.writeText(c); toast('Kode disalin!'); }
+  catch(e){ toast('Kode: '+c); } // clipboard diblokir sandbox → tampilkan saja
+});
 bind('#btnToBrief',function(){showBrief('host');});
 bind('#btnJoin',async function(){
   var code=$('#joinCode').value.trim().toUpperCase();
