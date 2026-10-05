@@ -86,7 +86,7 @@ label.lb{display:block; font-size:12px; font-weight:900; letter-spacing:1.5px; c
 .icon-btn{background:#FFFDF6; border:2.5px solid var(--tinta); border-radius:10px; padding:5px 11px; cursor:pointer;
   font-weight:900; font-size:13px; box-shadow:0 3px 0 rgba(42,31,23,.35); display:flex; align-items:center; gap:6px}
 .icon-btn:hover{transform:translateY(-1px)}
-#stage{flex:1; position:relative; min-height:0; background:#7A5A44}
+#stage{flex:1; position:relative; min-height:0; background:#E7D9BD}
 #cv{position:absolute; inset:0; width:100%; height:100%; display:block; touch-action:none; cursor:pointer}
 #toast{position:absolute; top:14px; left:50%; transform:translateX(-50%) translateY(-8px); background:var(--tinta); color:var(--krem);
   padding:8px 16px; border-radius:10px; font-weight:700; font-size:14px; opacity:0; pointer-events:none; transition:.18s; white-space:nowrap; z-index:5; border:2px solid var(--krem); max-width:94%}
@@ -166,12 +166,12 @@ label.lb{display:block; font-size:12px; font-weight:900; letter-spacing:1.5px; c
     </div>
     <div id="lobHost" class="hidden">
       <div class="codeBig" id="codeTxt">····</div>
-      <p class="mini" style="text-align:center;margin:2px 0 14px">Bagikan kode ini ke temanmu</p>
-      <div class="row">
+      <p class="mini" style="text-align:center;margin:2px 0 10px">Bagikan kode ini ke temanmu</p>
+      <p class="stat" id="hostStat">Pemain 2: menunggu…</p>
+      <div class="row" style="margin-top:12px">
         <button class="btn alt" id="btnCopy" style="flex:1">Salin</button>
         <button class="btn" id="btnToBrief" style="flex:1">Lanjut</button>
       </div>
-      <p class="stat" id="hostStat">Temanmu boleh gabung kapan saja.</p>
     </div>
     <div id="lobGuest" class="hidden">
       <p class="stat"><b>Terhubung!</b> Menunggu host mulai<span class="dots"></span></p>
@@ -230,7 +230,7 @@ label.lb{display:block; font-size:12px; font-weight:900; letter-spacing:1.5px; c
     <div class="chip"><svg width="15" height="15" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="#FFFDF6" stroke="#241B13" stroke-width="2.4"/><path d="M12 7v5l3.5 2" stroke="#241B13" stroke-width="2.4" fill="none" stroke-linecap="round"/></svg><span class="tbar"><i id="vTimeBar"></i></span><b id="vTimeTxt">4:00</b></div>
     <div class="chip"><svg width="15" height="15" viewBox="0 0 24 24"><ellipse cx="12" cy="13" rx="9" ry="5.5" fill="#FBF7EC" stroke="#241B13" stroke-width="2.2"/><ellipse cx="12" cy="13" rx="4.5" ry="2.4" fill="none" stroke="#241B13" stroke-width="1.6"/></svg><span class="lbl">PIRING</span><b id="vPlates">3</b></div>
     <div class="chip"><svg width="15" height="15" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" stroke="#D9472B" stroke-width="3.4" stroke-linecap="round"/></svg><b id="vAngry">0/3</b></div>
-    <div class="chip hidden" id="chipNet"><i id="netDot" style="width:9px;height:9px;border-radius:50%;background:#71823B;display:inline-block"></i><span id="vNet" style="font-size:11.5px"></span></div>
+    <div class="chip hidden" id="chipNet"><i id="netDot" style="width:9px;height:9px;border-radius:50%;background:#D9472B;display:inline-block"></i><span id="vNet" style="font-size:11.5px"></span></div>
     <span class="spacer"></span>
     <button class="icon-btn" id="btnHelp" title="Petunjuk">?</button>
     <button class="icon-btn" id="btnSound"><svg width="14" height="14" viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9H4z" fill="#241B13"/><path id="sndWave" d="M16.5 8.5a5 5 0 010 7" stroke="#241B13" stroke-width="2.2" fill="none" stroke-linecap="round"/></svg><span id="sndTxt">Suara</span></button>
@@ -249,21 +249,22 @@ label.lb{display:block; font-size:12px; font-weight:900; letter-spacing:1.5px; c
 
 <script>
 /* =====================================================
-   DAPUR DUO
-   JARINGAN TANPA SDK: REST API Firebase via fetch.
-   Tidak ada skrip eksternal → tidak bisa diblokir CSP
-   pratinjau; timeout 9 dtk dengan pesan jelas.
+   DAPUR DUO — versi tahan-banting
+   - Render papan dibungkus pengaman per-bagian; error
+     dicetak DI KANVAS + kotak error tidak hilang sendiri.
+   - Host menyiarkan state sejak restoran dibuka → tamu
+     langsung masuk, tanpa kebuntuan menunggu.
+   - Papan memperbaiki diri bila tidak lengkap.
    ===================================================== */
 
-var NOISE=/^Script error|Blocked a frame with origin|cross-origin frame|ResizeObserver loop/i;
+var NOISE=/^Script error$|Blocked a frame with origin|cross-origin frame|ResizeObserver loop/i;
 function showErr(msg,extra){
   var el=document.getElementById('errBox'); if(!el)return;
   msg=String(msg||'');
   if(NOISE.test(msg))return;
   el.classList.remove('hidden');
-  el.innerHTML='<b>Terjadi error — ketuk kotak ini untuk menutup, atau salin teks di bawah lalu kirim:</b><code></code>';
+  el.innerHTML='<b>Terjadi error — ketuk kotak ini untuk menutup. Salin teks di bawah bila mau lapor:</b><code></code>';
   el.querySelector('code').textContent=msg+(extra?(' — '+extra):'');
-  clearTimeout(showErr._t); showErr._t=setTimeout(function(){el.classList.add('hidden');},20000);
 }
 addEventListener('error',function(e){
   var m=(e&&e.message)||'';
@@ -348,7 +349,7 @@ function ensureMap(){
     var rows=clamp(Math.round(h/Math.max(1,w)*COLS),13,24);
     if(rows!==ROWS||!grid.length||!tables.length)buildMap(rows);
   }catch(e){ buildMap(15); }
-  if(!grid.length||!tables.length)buildMap(15);
+  if(!grid.length||!tables.length||!stoves.length)buildMap(15);
 }
 buildMap(15);
 function walkY(){return (DINROW+2.45)*T;}
@@ -390,6 +391,7 @@ var netTimers=[];
 var keys={};
 var FX={parts:[],floats:[],marks:[]};
 var hostRoleSel='koki';
+var RERR=null; // error render untuk banner di kanvas
 
 // ---------- Auto-fit ----------
 var dpr=1;
@@ -534,6 +536,7 @@ function newGame(hr){
     win:[], tb:tables.map(function(){return {s:'empty'};}), cs:[]};
 }
 function resetSlot(s){s.pl=false;s.ing=[];s.rd=false;s.rc=null;}
+function gameSane(){ return !!(g&&g.p&&g.p.length===2&&g.stv&&g.stv.length===stoves.length&&g.tb&&g.tb.length===tables.length); }
 
 // ---------- Pathfinding ----------
 function bfsPath(p,gx,gy){
@@ -631,15 +634,15 @@ function nearTile(p){
   } return best;
 }
 function floatL(x,y,tx,col){FX.floats.push({x:x,y:y,tx:tx,col:col,t:1.35});}
-function evFx(k,x,y,tx){ g.ev={id:(++g.eid),k:k,x:x,y:y,tx:tx}; floatL(x,y,tx,EVCOL[k]); }
+function evFx(k,x,y,tx){ if(!g)return; g.ev={id:(++g.eid),k:k,x:x,y:y,tx:tx}; floatL(x,y,tx,EVCOL[k]); }
 function toast(msg){var el=$('#toast');if(!el)return;el.textContent=msg;el.classList.add('show');
   clearTimeout(toast._t);toast._t=setTimeout(function(){el.classList.remove('show');},1700);}
 function fail(msg){toast(msg);sfx.err();}
 
 function spawnCust(){
-  if(!tables.length)return;
+  if(!tables.length||!g.tb.length)return;
   var idx=-1; for(var i=0;i<g.tb.length;i++)if(g.tb[i].s==='empty'){idx=i;break;}
-  if(idx<0)return;
+  if(idx<0||!tables[idx])return;
   var tx=tables[idx].sx, ty=tables[idx].sy;
   g.tb[idx].s='waiting';
   g.cs.push({id:g.nid++,seat:idx,rc:pick(Object.keys(RECIPES)),st:'walk',pat:PAT,
@@ -667,7 +670,7 @@ function upCust(c,dt){
   }
   c.mad=Math.max(0,c.mad-dt);
 }
-function doEmote(i){ var p=g.p[i]; p.emTxt=EMOTES[emI++%EMOTES.length]; p.emT=2.2; sfx.em(); }
+function doEmote(i){ if(!g)return; var p=g.p[i]; p.emTxt=EMOTES[emI++%EMOTES.length]; p.emT=2.2; sfx.em(); }
 
 function checkDishReady(sl){
   if(!sl.pl||!sl.ing.length)return;
@@ -825,8 +828,9 @@ function sim(dt,I){
   for(var i=0;i<2;i++){ stepP(i,I[i],dt); sinkHold(i,I[i],dt); }
   g.snk=Math.max(g.p[0].wash,g.p[1].wash);
   g.stv.forEach(function(s,si){ var it=s.it; if(!it)return;
+    var stv=stoves[si]; if(!stv)return;
     if(it.st===1){ it.pr+=dt/3; if(it.pr>=1){it.st=2;it.ck=true;it.pr=0;
-      evFx('ding',stoves[si].x*T+T/2,stoves[si].y*T,'Ding! Matang');sfx.ding();} }
+      evFx('ding',stv.x*T+T/2,stv.y*T,'Ding! Matang');sfx.ding();} }
     else if(it.st===2){ it.pr+=dt/5; if(it.pr>=1){it.st=3;it.bt=true;toast('Ada yang hangus di kompor!');} }
   });
   for(var i2=g.cs.length-1;i2>=0;i2--){ upCust(g.cs[i2],dt); if(g.cs[i2].gone)g.cs.splice(i2,1); }
@@ -844,9 +848,8 @@ function endGame(dead){
 }
 
 // ---------- Snapshot ----------
-// PENTING: array tidak boleh berisi null (Firebase menghapusnya) →
-// slot kosong ditandai {e:1} lalu dikembalikan jadi null saat dibaca.
 function snapState(){
+  if(!g)throw new Error('snapshot: game belum ada');
   var other=g.hr==='koki'?'pelayan':'koki';
   return {rows:ROWS, mt:Date.now(),
     ph:g.ph,t:Math.round(g.t*10)/10,sc:g.sc,ang:g.ang,sv:g.sv,wa:g.wa,pl:g.pl,hr:g.hr,
@@ -999,54 +1002,79 @@ function drawFx(){
 }
 function ringFor(i){ return mode==='local'?true:(mode==='host'?i===0:i===1); }
 function renderGame(view,isGuest,dt,now){
-  RV=view; RNOW=now; RDT=dt;
-  fitCanvas(); fitCam();
-  ctx.setTransform(1,0,0,1,0,0);
-  ctx.fillStyle='#7A5A44'; ctx.fillRect(0,0,cv.width,cv.height);
-  var s=dpr*cam.z;
-  ctx.setTransform(s,0,0,s,-cam.x*s,-cam.y*s);
-  for(var y=0;y<ROWS;y++)for(var x=0;x<COLS;x++){ var t=grid[y][x], px=x*T, py=y*T;
-    if(t.t==='wall'){ ctx.fillStyle='#7A5A44'; ctx.fillRect(px,py,T,T);
-      ctx.fillStyle='#6B4C38'; ctx.fillRect(px,py+T-3,T,3); continue; }
-    if(t.t==='floorD'){ ctx.fillStyle=(x+y)%2?'#EFE3CB':'#E7D9BD'; ctx.fillRect(px,py,T,T); }
-    else{ ctx.fillStyle='#DDBE92'; ctx.fillRect(px,py,T,T);
-      ctx.strokeStyle='rgba(122,84,51,.28)'; ctx.lineWidth=1;
-      ctx.beginPath(); ctx.moveTo(px,py+T-.5); ctx.lineTo(px+T,py+T-.5);
-      var off=((x*7+y*13)%3+1)*16; ctx.moveTo(px+off,py); ctx.lineTo(px+off,py+T); ctx.stroke(); }
-  }
-  for(var y2=0;y2<ROWS;y2++)for(var x2=0;x2<COLS;x2++)drawTile(grid[y2][x2]);
-  if(mode!=='guest'&&g){
-    g.p.forEach(function(pl,i){
-      if(pl.path&&pl.path.length){
-        ctx.save();ctx.strokeStyle=i===0?'rgba(233,160,59,.85)':'rgba(217,71,43,.85)';
-        ctx.lineWidth=4;ctx.setLineDash([2,12]);ctx.lineCap='round';
-        ctx.beginPath();ctx.moveTo(pl.x,pl.y);
-        pl.path.forEach(function(w){ctx.lineTo(w.x,w.y);});
-        ctx.stroke();ctx.restore();
+  try{
+    RV=view; RNOW=now; RDT=dt;
+    fitCanvas(); fitCam();
+    ctx.setTransform(1,0,0,1,0,0);
+    ctx.fillStyle='#7A5A44'; ctx.fillRect(0,0,cv.width,cv.height);
+    var s=dpr*cam.z;
+    ctx.setTransform(s,0,0,s,-cam.x*s,-cam.y*s);
+    // lantai + dinding (pengaman: tile rusak dilewati, bukan menggagalkan frame)
+    for(var y=0;y<ROWS;y++){ var row=grid[y]; if(!row)continue;
+      for(var x=0;x<COLS;x++){ var t=row[x]; if(!t)continue; var px=x*T, py=y*T;
+        if(t.t==='wall'){ ctx.fillStyle='#7A5A44'; ctx.fillRect(px,py,T,T);
+          ctx.fillStyle='#6B4C38'; ctx.fillRect(px,py+T-3,T,3); continue; }
+        if(t.t==='floorD'){ ctx.fillStyle=(x+y)%2?'#EFE3CB':'#E7D9BD'; ctx.fillRect(px,py,T,T); }
+        else{ ctx.fillStyle='#DDBE92'; ctx.fillRect(px,py,T,T);
+          ctx.strokeStyle='rgba(122,84,51,.28)'; ctx.lineWidth=1;
+          ctx.beginPath(); ctx.moveTo(px,py+T-.5); ctx.lineTo(px+T,py+T-.5);
+          var off=((x*7+y*13)%3+1)*16; ctx.moveTo(px+off,py); ctx.lineTo(px+off,py+T); ctx.stroke(); }
+      }
+    }
+    // objek fancy per tile — kalau satu gagal, sisanya tetap tergambar
+    for(var y2=0;y2<ROWS;y2++){ var row2=grid[y2]; if(!row2)continue;
+      for(var x2=0;x2<COLS;x2++){ var t2=row2[x2]; if(!t2||t2.t==='floorD'||t2.t==='floorF'||t2.t==='wall')continue;
+        try{ drawTile(t2); }
+        catch(e){ if(!RERR)RERR='drawTile('+t2.t+'): '+((e&&e.message)||e);
+          ctx.fillStyle='#E7D9BD'; ctx.fillRect(t2.x*T,t2.y*T,T,T); }
+      }
+    }
+    if(mode!=='guest'&&g&&g.p){
+      g.p.forEach(function(pl,i){
+        if(pl.path&&pl.path.length){
+          ctx.save();ctx.strokeStyle=i===0?'rgba(233,160,59,.85)':'rgba(217,71,43,.85)';
+          ctx.lineWidth=4;ctx.setLineDash([2,12]);ctx.lineCap='round';
+          ctx.beginPath();ctx.moveTo(pl.x,pl.y);
+          pl.path.forEach(function(w){ctx.lineTo(w.x,w.y);});
+          ctx.stroke();ctx.restore();
+        }
+      });
+    }
+    var my=isGuest?1:0;
+    var roles=view.roles||[view.hr,(view.hr==='koki'?'pelayan':'koki')];
+    [0,1].forEach(function(i){
+      var pl=view.p&&view.p[i]; if(!pl)return;
+      var nt=null; try{nt=nearTile(pl);}catch(e){}
+      if(!nt||view.ph!=='play')return;
+      ctx.save();
+      ctx.strokeStyle = i===my ? 'rgba(255,253,246,.9)'
+        : (roles[i]==='koki'?'rgba(233,160,59,.55)':'rgba(217,71,43,.55)');
+      ctx.lineWidth=3; ctx.setLineDash([6,5]); ctx.lineDashOffset=-now*22;
+      rr(ctx,nt.x*T+3,nt.y*T+3,T-6,T-6,8);ctx.stroke();ctx.restore();
+    });
+    (view.cs||[]).forEach(function(cu){ try{drawCust(cu);}catch(e){ if(!RERR)RERR='drawCust: '+((e&&e.message)||e);} });
+    (view.p||[]).forEach(function(p,i){ if(!p)return;
+      try{ drawPlayerC(ctx,p.x,p.y,roles[i],p.f,p.step||0,p.c,ringFor(i),p.e); }
+      catch(e){ if(!RERR)RERR='drawPlayer: '+((e&&e.message)||e); }
+      if(mode==='local'&&i===selPlayer){
+        ctx.save();ctx.strokeStyle='#241B13';ctx.lineWidth=2.5;
+        ctx.setLineDash([3,7]);ctx.lineDashOffset=now*30;
+        ell(ctx,p.x,p.y+4,16*PSC+5,8.5*PSC+5);ctx.stroke();ctx.restore();
       }
     });
+    try{ drawFx(); }catch(e){}
+  }catch(e){ RERR='render: '+((e&&e.message)||e); }
+  // Banner error DI ATAS KANVAS — selalu terlihat
+  if(RERR){
+    ctx.setTransform(1,0,0,1,0,0);
+    var bw=Math.min(cv.width-16,560);
+    ctx.fillStyle='rgba(217,71,43,.95)';
+    rr(ctx,8,cv.height-58,bw,50,10); ctx.fill();
+    ctx.fillStyle='#FFF6EA'; ctx.font='700 13px monospace'; ctx.textAlign='left';
+    ctx.fillText('RENDER ERROR (laporkan teks ini):',20,cv.height-38);
+    ctx.fillText(String(RERR).slice(0,70),20,cv.height-18);
+    RERR=null;
   }
-  var my=isGuest?1:0;
-  var roles=view.roles||[view.hr,(view.hr==='koki'?'pelayan':'koki')];
-  [0,1].forEach(function(i){
-    var pl=view.p[i]; if(!pl)return;
-    var nt=nearTile(pl); if(!nt||view.ph!=='play')return;
-    ctx.save();
-    ctx.strokeStyle = i===my ? 'rgba(255,253,246,.9)'
-      : (roles[i]==='koki'?'rgba(233,160,59,.55)':'rgba(217,71,43,.55)');
-    ctx.lineWidth=3; ctx.setLineDash([6,5]); ctx.lineDashOffset=-now*22;
-    rr(ctx,nt.x*T+3,nt.y*T+3,T-6,T-6,8);ctx.stroke();ctx.restore();
-  });
-  (view.cs||[]).forEach(drawCust);
-  view.p.forEach(function(p,i){ if(!p)return;
-    drawPlayerC(ctx,p.x,p.y,roles[i],p.f,p.step||0,p.c,ringFor(i),p.e);
-    if(mode==='local'&&i===selPlayer){
-      ctx.save();ctx.strokeStyle='#241B13';ctx.lineWidth=2.5;
-      ctx.setLineDash([3,7]);ctx.lineDashOffset=now*30;
-      ell(ctx,p.x,p.y+4,16*PSC+5,8.5*PSC+5);ctx.stroke();ctx.restore();
-    }
-  });
-  drawFx();
 }
 function upFx(dt){
   for(var i=FX.parts.length-1;i>=0;i--){ var p=FX.parts[i];
@@ -1145,7 +1173,7 @@ cv.addEventListener('pointerdown',function(e){
 });
 
 /* =====================================================
-   JARINGAN: REST API Firebase (tanpa SDK/skrip eksternal)
+   JARINGAN: REST API Firebase (tanpa SDK)
    ===================================================== */
 var DBU='https://cook-cd6fb-default-rtdb.asia-southeast1.firebasedatabase.app';
 function dbUrl(p){ return DBU+'/'+p+'.json'; }
@@ -1165,7 +1193,7 @@ async function dbReq(path,method,val){
     return txt?JSON.parse(txt):null;
   }catch(e){
     clearTimeout(t);
-    if(e&&e.name==='AbortError')throw new Error('Koneksi ke server lambat/diblokir. Kalau kamu main lewat pratinjau chat, unduh file .html ini lalu buka langsung di Chrome.');
+    if(e&&e.name==='AbortError')throw new Error('Koneksi ke server lambat/diblokir. Unduh file .html ini lalu buka langsung di Chrome.');
     throw e;
   }
 }
@@ -1199,7 +1227,7 @@ function pushState(){ if(!net||!net.isHost||!g)return;
 function maybePush(){ var n2=performance.now(); if(n2-lastPush>66){lastPush=n2;pushState();} }
 function netLost(msg){ toast(msg); exitToTitle(); }
 
-// Host: baca seluruh ruangan tiap 200ms (kehadiran tamu + input tamu)
+// Host: kehadiran tamu + input tamu
 async function hostTick(){
   if(!net||!net.isHost)return;
   try{
@@ -1209,6 +1237,9 @@ async function hostTick(){
     var gp=!!(gs&&gs.ts&&(Date.now()-gs.ts<8000));
     if(gp&&!guestPresent){guestPresent=true;sfx.pop();toast('Pemain 2 masuk!');}
     else if(!gp&&guestPresent){guestPresent=false;}
+    var hs=$('#hostStat');
+    if(hs&&!$('#lobHost').classList.contains('hidden'))
+      hs.innerHTML=gp?'<b>Pemain 2 sudah masuk!</b>':'Pemain 2: menunggu…';
     var gi=room.guestInput||null;
     if(gi){
       netIn=gi;
@@ -1221,7 +1252,7 @@ async function hostTick(){
     }
   }catch(e){}
 }
-// Tamu: ambil state tiap 180ms
+// Tamu: ambil state
 async function guestTick(){
   if(!net||net.isHost)return;
   try{
@@ -1230,8 +1261,6 @@ async function guestTick(){
     else if(hadSnap){netLost('Host menutup ruangan.');}
   }catch(e){}
 }
-
-function netLost_check(){/* placeholder */}
 
 // ---------- Flow layar ----------
 var SCREENS=['scrTitle','scrLobby','scrBrief','scrResult'];
@@ -1282,8 +1311,10 @@ function startShift(){
     showErr('Gagal menyiapkan papan: '+((e&&e.message)||e));
     exitToTitle(); return;
   }
+  if(!gameSane()){ buildMap(15); g=newGame(mode==='local'?'koki':(net?net.role:'koki')); }
   resetFX();
   countdown(function(){ running=true; if(mode==='host')pushState(); });
+  if(mode==='host')pushState(); // state tersedia sejak sekarang → tamu bisa masuk
 }
 function showBrief(briefMode){
   show('scrBrief');
@@ -1321,6 +1352,7 @@ function again(){
   catch(e){ showErr('Gagal menyiapkan papan: '+((e&&e.message)||e)); exitToTitle(); return; }
   resetFX();
   countdown(function(){ running=true; if(mode==='host')pushState(); });
+  if(mode==='host')pushState();
 }
 
 // ---------- Loop utama ----------
@@ -1332,13 +1364,18 @@ function frame(ts){
   upFx(dt);
   try{
     if(mode==='local'||mode==='host'){
+      // perbaikan mandiri: papan hilang/rusak → buat ulang
+      if(!g||!gameSane()){
+        ensureMap();
+        try{ g=newGame(mode==='local'?'koki':(net?net.role:'koki')); }catch(e){}
+      }
       var paused=(mode==='host'&&running&&!guestPresent);
       $('#waitOvl').classList.toggle('hidden',!paused);
       if(running&&!paused){
         sim(dt,[readLocal(0),mode==='local'?readLocal(1):netInDerived()]);
         bufA=[false,false];bufE=[false,false];
       }
-      if(mode==='host'&&running)maybePush();
+      if(mode==='host'&&g)maybePush(); // sinkron jalan sejak restoran dibuka
       if(g)renderGame(snapState(),false,dt,now);
     }else if(mode==='guest'){
       var sn=netSnap;
@@ -1353,13 +1390,13 @@ function frame(ts){
         if(running)renderGame(guestView(sn,dt),true,dt,now);
         sendInputNow();
       }
-      // deteksi host lambat/putus
       if(running&&hadSnap){
         var stale=Date.now()-lastStateAt>8000;
         if(stale&&Date.now()-staleWarn>5000){staleWarn=Date.now();toast('Koneksi ke host lambat…');}
       }
     }
     if(mode)updateHUD();
+    lastFrameErr='';
   }catch(e){
     var m=(e&&e.message)||String(e);
     if(!NOISE.test(m)&&m!==lastFrameErr){ lastFrameErr=m; showErr(m,'(loop)'); }
@@ -1383,7 +1420,7 @@ function sendInputNow(){
 var lastScore=null;
 function updateHUD(){
   var s;
-  if(mode==='guest')s=netSnap; else s=g?snapState():null;
+  if(mode==='guest'){ s=netSnap; } else { if(!g)return; try{ s=snapState(); }catch(e){ return; } }
   if(!s)return;
   var elS=$('#vScore');
   if((s.sc||0)!==lastScore){elS.textContent=s.sc||0;
@@ -1425,7 +1462,7 @@ bind('#btnLocal',function(){mode='local';showBrief('local');});
 bind('#btnOnline',function(){show('scrLobby');resetLobby();});
 function resetLobby(){$('#lobMain').classList.remove('hidden');$('#lobHost').classList.add('hidden');
   $('#lobGuest').classList.add('hidden');$('#lobStatus').textContent='';$('#joinCode').value='';
-  $('#hostStat').textContent='Temanmu boleh gabung kapan saja.';}
+  $('#hostStat').textContent='Pemain 2: menunggu…';}
  $('#roleSeg').addEventListener('click',function(e){
   var b=e.target.closest('button');if(!b)return;
   hostRoleSel=b.dataset.r;
@@ -1444,6 +1481,7 @@ bind('#btnCreate',async function(){
     },4000));
     $('#lobMain').classList.add('hidden');$('#lobHost').classList.remove('hidden');
     $('#codeTxt').textContent=net.code;
+    $('#hostStat').textContent='Pemain 2: menunggu…';
     $('#lobStatus').textContent='';
   }catch(e){$('#lobStatus').textContent=netErrMsg(e);net=null;}
 });
@@ -1461,7 +1499,6 @@ bind('#btnJoin',async function(){
     leaveNet();
     var m=await FB.get('rooms/'+code+'/meta');
     if(!m){$('#lobStatus').textContent='Ruangan tidak ditemukan.';return;}
-    if(m.mt&&Date.now()-m.mt>20000){$('#lobStatus').textContent='Host tidak aktif — minta kode baru.';return;}
     net={isHost:false,code:code,role:m.role==='koki'?'pelayan':'koki'};
     await FB.put('rooms/'+code+'/guest',{ts:Date.now()});
     netTimers.push(setInterval(guestTick,180));
