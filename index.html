@@ -3,11 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Kerja Sama Dua Pegawai Restoran</title>
+<title>Dapur Duo — Kerja Sama Dua Pegawai Restoran</title>
 <link href="https://fonts.googleapis.com/css2?family=Bungee&family=Chivo:wght@400;700;900&display=swap" rel="stylesheet">
-<!-- Firebase via script klasik (kompatibel iframe sandbox & file://) -->
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js" onerror="window.__fbFail=1"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js" onerror="window.__fbFail=1"></script>
 <style>
 :root{
   --krem:#F4ECDC; --krem2:#EAE0C9; --tinta:#241B13; --coklat:#2A1F17;
@@ -174,7 +171,7 @@ label.lb{display:block; font-size:12px; font-weight:900; letter-spacing:1.5px; c
         <button class="btn alt" id="btnCopy" style="flex:1">Salin</button>
         <button class="btn" id="btnToBrief" style="flex:1">Lanjut</button>
       </div>
-      <p class="stat" id="hostStat">Temanmu boleh gabung kapan saja — bahkan saat permainan sudah berjalan.</p>
+      <p class="stat" id="hostStat">Temanmu boleh gabung kapan saja.</p>
     </div>
     <div id="lobGuest" class="hidden">
       <p class="stat"><b>Terhubung!</b> Menunggu host mulai<span class="dots"></span></p>
@@ -253,17 +250,16 @@ label.lb{display:block; font-size:12px; font-weight:900; letter-spacing:1.5px; c
 <script>
 /* =====================================================
    DAPUR DUO
-   - Firebase kini via <script> klasik (compat) di <head>,
-     BUKAN import() — memperbaiki SecurityError
-     "Blocked a frame with origin null" pada pratinjau
-     ber-iframe sandbox.
-   - Error noise sandbox difilter dari pelapor.
+   JARINGAN TANPA SDK: REST API Firebase via fetch.
+   Tidak ada skrip eksternal → tidak bisa diblokir CSP
+   pratinjau; timeout 9 dtk dengan pesan jelas.
    ===================================================== */
 
-var NOISE=/Blocked a frame with origin|cross-origin frame/i;
+var NOISE=/^Script error|Blocked a frame with origin|cross-origin frame|ResizeObserver loop/i;
 function showErr(msg,extra){
   var el=document.getElementById('errBox'); if(!el)return;
-  if(NOISE.test(msg))return; // noise lingkungan pratinjau — abaikan
+  msg=String(msg||'');
+  if(NOISE.test(msg))return;
   el.classList.remove('hidden');
   el.innerHTML='<b>Terjadi error — ketuk kotak ini untuk menutup, atau salin teks di bawah lalu kirim:</b><code></code>';
   el.querySelector('code').textContent=msg+(extra?(' — '+extra):'');
@@ -276,7 +272,6 @@ addEventListener('error',function(e){
 });
 addEventListener('unhandledrejection',function(e){
   var r=e&&e.reason||{}, m=(r&&(r.message||r.code))||String(r);
-  if(NOISE.test(m))return;
   showErr(m);
 });
 document.getElementById('errBox').addEventListener('click',function(){this.classList.add('hidden');});
@@ -390,7 +385,8 @@ var mode=null, g=null, running=false, selPlayer=0;
 var net=null, netSnap=null, netIn=null, guestPresent=false, startedG=false, resultShown=false;
 var bufA=[false,false], bufE=[false,false], lastA=-1, lastE=-1, aCtr=0, eCtr=0, lastN=-1;
 var lastSent='', lastSentT=0, lastEv=0, lastPush=0, emI=0;
-var pendNetCmd=null, nSeq=0;
+var pendNetCmd=null, nSeq=0, lastStateAt=0, hadSnap=false, staleWarn=0;
+var netTimers=[];
 var keys={};
 var FX={parts:[],floats:[],marks:[]};
 var hostRoleSel='koki';
@@ -848,17 +844,19 @@ function endGame(dead){
 }
 
 // ---------- Snapshot ----------
+// PENTING: array tidak boleh berisi null (Firebase menghapusnya) →
+// slot kosong ditandai {e:1} lalu dikembalikan jadi null saat dibaca.
 function snapState(){
   var other=g.hr==='koki'?'pelayan':'koki';
-  return {rows:ROWS,
+  return {rows:ROWS, mt:Date.now(),
     ph:g.ph,t:Math.round(g.t*10)/10,sc:g.sc,ang:g.ang,sv:g.sv,wa:g.wa,pl:g.pl,hr:g.hr,
     p:g.p.map(function(p){return {x:Math.round(p.x*10)/10,y:Math.round(p.y*10)/10,f:p.face,step:Math.round(p.step*10)/10,
       c:p.c||null,e:p.emT>0?p.emTxt:null};}),
-    stv:g.stv.map(function(s){return s.it?{n:s.it.n,ck:s.it.ck,bt:s.it.bt,st:s.it.st,pr:Math.round(s.it.pr*100)/100}:null;}),
+    stv:g.stv.map(function(s){return s.it?{n:s.it.n,ck:s.it.ck,bt:s.it.bt,st:s.it.st,pr:Math.round(s.it.pr*100)/100}:{e:1};}),
     plt:g.plt.map(function(s){return {pl:s.pl,ing:s.ing.slice(),rd:s.rd,rc:s.rc||null};}),
     win:g.win.map(function(w){return {rc:w.rc};}),
     tb:g.tb.map(function(t){return t.s;}),
-    ct:counters.map(function(t){return t.item||null;}),
+    ct:counters.map(function(t){return t.item||{e:1};}),
     cs:g.cs.map(function(c){return {id:c.id,x:Math.round(c.x*10)/10,y:Math.round(c.y*10)/10,st:c.st,rc:c.rc,
       pat:Math.round(c.pat*10)/10,col:c.col,skin:c.skin,mad:Math.round(c.mad*10)/10,o:c.o};}),
     snk:Math.round(g.snk*100)/100, ev:g.ev, res:g.res||null,
@@ -869,14 +867,14 @@ function normState(v){
   if(v.rows&&v.rows!==ROWS)buildMap(v.rows);
   function arr(a,d){return Array.isArray(a)?a:d;}
   var sv=arr(v.stv,[]);
-  v.stv=[]; for(var i=0;i<stoves.length;i++)v.stv.push(sv[i]||null);
+  v.stv=stoves.map(function(_,i){ var o=sv[i]; return (o&&o.n)?o:null; });
   v.plt=arr(v.plt,[]).map(function(s){ s=s||{};
     return {pl:!!s.pl,rd:!!s.rd,rc:s.rc||null,ing:arr(s.ing,[])}; });
   while(v.plt.length<2)v.plt.push({pl:false,rd:false,rc:null,ing:[]});
   v.win=arr(v.win,[]); v.tb=arr(v.tb,[]); v.cs=arr(v.cs,[]);
   while(v.tb.length<tables.length)v.tb.push('empty');
   var ct=arr(v.ct,[]);
-  counters.forEach(function(t,i2){ t.item=ct[i2]||null; });
+  counters.forEach(function(t,i2){ var o=ct[i2]; t.item=(o&&o.k)?o:null; });
   v.sc=v.sc||0; v.ang=v.ang||0; v.sv=v.sv||0; v.wa=v.wa||0; v.pl=(v.pl===undefined?3:v.pl);
   v.t=v.t||0; v.snk=v.snk||0; v.hr=v.hr||'koki';
   return v;
@@ -1146,54 +1144,94 @@ cv.addEventListener('pointerdown',function(e){
   try{handleTap(p.x,p.y);}catch(err){showErr((err&&err.message)||String(err));}
 });
 
-// ---------- Firebase (compat, config tertanam) ----------
-var DEFAULT_CFG={databaseURL:"https://cook-cd6fb-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId:"cook-cd6fb"};
-var FB=null;
+/* =====================================================
+   JARINGAN: REST API Firebase (tanpa SDK/skrip eksternal)
+   ===================================================== */
+var DBU='https://cook-cd6fb-default-rtdb.asia-southeast1.firebasedatabase.app';
+function dbUrl(p){ return DBU+'/'+p+'.json'; }
+async function dbReq(path,method,val){
+  var ctrl=new AbortController();
+  var t=setTimeout(function(){ctrl.abort();},9000);
+  var opts={method:method||'GET',signal:ctrl.signal,cache:'no-store'};
+  if(val!==undefined)opts.body=JSON.stringify(val);
+  try{
+    var res=await fetch(dbUrl(path),opts);
+    clearTimeout(t);
+    var txt=await res.text();
+    if(!res.ok){
+      var m=txt; try{m=JSON.parse(txt).error||txt;}catch(e2){}
+      throw new Error(m);
+    }
+    return txt?JSON.parse(txt):null;
+  }catch(e){
+    clearTimeout(t);
+    if(e&&e.name==='AbortError')throw new Error('Koneksi ke server lambat/diblokir. Kalau kamu main lewat pratinjau chat, unduh file .html ini lalu buka langsung di Chrome.');
+    throw e;
+  }
+}
+var FB={
+  put:function(p,v){ return dbReq(p,'PUT',v===undefined?null:v); },
+  get:function(p){ return dbReq(p,'GET'); }
+};
 function netErrMsg(e){
-  var m=(e&&(e.code||e.message))||String(e);
+  var m=(e&&(e.message||e.code))||String(e);
   if(/permission/i.test(m))return 'Akses ditolak — di Firebase console, Realtime Database → Rules, izinkan read/write untuk "rooms" lalu Publish.';
-  if(/tidak termuat|memuat pustaka/i.test(m))return m;
+  if(/lambat|diblokir|unduh/i.test(m))return m;
   if(/network|fetch|Failed to fetch|load/i.test(m))return 'Koneksi bermasalah — periksa internet lalu coba lagi.';
   return 'Gagal: '+m;
 }
-async function ensureFB(){
-  if(FB)return FB;
-  if(window.__fbFail||!window.firebase||!firebase.database){
-    throw new Error('Pustaka Firebase tidak termuat. Cek internet; kalau muncul terus di pratinjau chat, simpan file .html ini dan buka langsung di Chrome.');
-  }
-  try{
-    if(!firebase.apps||!firebase.apps.length) firebase.initializeApp(DEFAULT_CFG);
-  }catch(e){ if(!/already exists/i.test(e.message||'')) throw e; }
-  var db=firebase.database();
-  FB={
-    db:db,
-    ref:function(_db,path){ return db.ref(path); },
-    set:function(r,v){ return r.set(v); },
-    get:function(r){ return r.get(); },
-    remove:function(r){ return r.remove(); },
-    onValue:function(r,cb){ r.on('value',cb); return function(){ r.off('value',cb); }; },
-    onDisconnect:function(r){ return r.onDisconnect(); }
-  };
-  return FB;
-}
 var ALPHA='ABCDEFGHJKMNPQRSTUVWXYZ';
 function mkCode(){var s='';for(var i=0;i<4;i++)s+=ALPHA[Math.random()*ALPHA.length|0];return s;}
-var unsubs=[];
-function unsubAll(){unsubs.forEach(function(u){try{u();}catch(e){}});unsubs=[];}
-function pushState(){ if(!net||!net.isHost||!FB||!g)return;
-  FB.set(FB.ref(FB.db,'rooms/'+net.code+'/state'),snapState()).catch(function(){}); }
-function maybePush(){ var n2=performance.now(); if(n2-lastPush>66){lastPush=n2;pushState();} }
+function stopTimers(){netTimers.forEach(clearInterval);netTimers=[];}
 function leaveNet(){
-  unsubAll();
-  if(net&&FB){ var base='rooms/'+net.code;
-    if(net.isHost)FB.remove(FB.ref(FB.db,base)).catch(function(){});
-    else{FB.remove(FB.ref(FB.db,base+'/guest')).catch(function(){});FB.remove(FB.ref(FB.db,base+'/guestInput')).catch(function(){});}
+  stopTimers();
+  if(net){
+    var base='rooms/'+net.code;
+    if(net.isHost)FB.put(base,null).catch(function(){});
+    else{FB.put(base+'/guest',null).catch(function(){});FB.put(base+'/guestInput',null).catch(function(){});}
   }
   net=null;netSnap=null;netIn=null;guestPresent=false;startedG=false;resultShown=false;
+  hadSnap=false;lastStateAt=0;staleWarn=0;
   lastA=-1;lastE=-1;lastN=-1;aCtr=0;eCtr=0;lastEv=0;lastSent='';pendNetCmd=null;
 }
+function pushState(){ if(!net||!net.isHost||!g)return;
+  FB.put('rooms/'+net.code+'/state',snapState()).catch(function(){}); }
+function maybePush(){ var n2=performance.now(); if(n2-lastPush>66){lastPush=n2;pushState();} }
 function netLost(msg){ toast(msg); exitToTitle(); }
+
+// Host: baca seluruh ruangan tiap 200ms (kehadiran tamu + input tamu)
+async function hostTick(){
+  if(!net||!net.isHost)return;
+  try{
+    var room=await FB.get('rooms/'+net.code);
+    if(!room)return;
+    var gs=room.guest||null;
+    var gp=!!(gs&&gs.ts&&(Date.now()-gs.ts<8000));
+    if(gp&&!guestPresent){guestPresent=true;sfx.pop();toast('Pemain 2 masuk!');}
+    else if(!gp&&guestPresent){guestPresent=false;}
+    var gi=room.guestInput||null;
+    if(gi){
+      netIn=gi;
+      if(gi.n!==undefined&&gi.n!==lastN){ lastN=gi.n;
+        if(gi.em){if(running&&g)doEmote(1);}
+        else if(gi.tx>=0&&running)commandTo(1,gi.tx,gi.ty);
+      }
+      if(gi.a!==lastA){lastA=gi.a;bufA[1]=true;}
+      if(gi.e!==lastE){lastE=gi.e;bufE[1]=true;}
+    }
+  }catch(e){}
+}
+// Tamu: ambil state tiap 180ms
+async function guestTick(){
+  if(!net||net.isHost)return;
+  try{
+    var st=await FB.get('rooms/'+net.code+'/state');
+    if(st){netSnap=normState(st)||netSnap;lastStateAt=Date.now();hadSnap=true;}
+    else if(hadSnap){netLost('Host menutup ruangan.');}
+  }catch(e){}
+}
+
+function netLost_check(){/* placeholder */}
 
 // ---------- Flow layar ----------
 var SCREENS=['scrTitle','scrLobby','scrBrief','scrResult'];
@@ -1315,6 +1353,11 @@ function frame(ts){
         if(running)renderGame(guestView(sn,dt),true,dt,now);
         sendInputNow();
       }
+      // deteksi host lambat/putus
+      if(running&&hadSnap){
+        var stale=Date.now()-lastStateAt>8000;
+        if(stale&&Date.now()-staleWarn>5000){staleWarn=Date.now();toast('Koneksi ke host lambat…');}
+      }
     }
     if(mode)updateHUD();
   }catch(e){
@@ -1325,7 +1368,7 @@ function frame(ts){
 requestAnimationFrame(frame);
 
 function sendInputNow(){
-  if(!net||net.isHost||!FB||!running)return;
+  if(!net||net.isHost||!running)return;
   var i=readLocal(1);
   if(i.aBuf){aCtr++;bufA[1]=false;}
   if(i.eBuf){eCtr++;bufE[1]=false;}
@@ -1333,7 +1376,7 @@ function sendInputNow(){
   if(pendNetCmd){ v.tx=pendNetCmd.tx; v.ty=pendNetCmd.ty; v.em=pendNetCmd.em; v.n=pendNetCmd.n; pendNetCmd=null; }
   var s2=JSON.stringify(v), n2=performance.now();
   if(s2!==lastSent||n2-lastSentT>600){lastSent=s2;lastSentT=n2;
-    FB.set(FB.ref(FB.db,'rooms/'+net.code+'/guestInput'),v).catch(function(){});}
+    FB.put('rooms/'+net.code+'/guestInput',v).catch(function(){});}
 }
 
 // ---------- HUD ----------
@@ -1382,7 +1425,7 @@ bind('#btnLocal',function(){mode='local';showBrief('local');});
 bind('#btnOnline',function(){show('scrLobby');resetLobby();});
 function resetLobby(){$('#lobMain').classList.remove('hidden');$('#lobHost').classList.add('hidden');
   $('#lobGuest').classList.add('hidden');$('#lobStatus').textContent='';$('#joinCode').value='';
-  $('#btnToBrief').disabled=false;$('#hostStat').textContent='';}
+  $('#hostStat').textContent='Temanmu boleh gabung kapan saja.';}
  $('#roleSeg').addEventListener('click',function(e){
   var b=e.target.closest('button');if(!b)return;
   hostRoleSel=b.dataset.r;
@@ -1392,40 +1435,22 @@ bind('#btnLobBack',function(){leaveNet();show('scrTitle');});
 bind('#btnCreate',async function(){
   try{
     $('#lobStatus').textContent='Membuat ruangan…';
-    await ensureFB();
     leaveNet();
     net={isHost:true,code:mkCode(),role:hostRoleSel,guestIn:false};
-    var base='rooms/'+net.code;
-    await FB.set(FB.ref(FB.db,base),{meta:{role:net.role,c:Date.now()}});
-    try{FB.onDisconnect(FB.ref(FB.db,base)).remove().catch(function(){});}catch(e){}
-    unsubs.push(FB.onValue(FB.ref(FB.db,base+'/guest'),function(s){
-      if(!net||!net.isHost)return;
-      if(s.exists()){
-        net.guestIn=true;guestPresent=true;
-        $('#hostStat').innerHTML='<b>Pemain 2 masuk!</b>';
-      }else{
-        guestPresent=false;
-      }
-    }));
-    unsubs.push(FB.onValue(FB.ref(FB.db,base+'/guestInput'),function(s){
-      var v=s.val();if(!v)return;netIn=v;
-      if(v.n!==undefined&&v.n!==lastN){ lastN=v.n;
-        if(v.em){if(running&&g)doEmote(1);}
-        else if(v.tx>=0&&running)commandTo(1,v.tx,v.ty);
-      }
-      if(v.a!==lastA){lastA=v.a;bufA[1]=true;}
-      if(v.e!==lastE){lastE=v.e;bufE[1]=true;}
-    }));
+    await FB.put('rooms/'+net.code,{meta:{role:net.role,mt:Date.now()}});
+    netTimers.push(setInterval(hostTick,200));
+    netTimers.push(setInterval(function(){
+      if(net&&net.isHost)FB.put('rooms/'+net.code+'/meta',{role:net.role,mt:Date.now()}).catch(function(){});
+    },4000));
     $('#lobMain').classList.add('hidden');$('#lobHost').classList.remove('hidden');
     $('#codeTxt').textContent=net.code;
-    $('#hostStat').textContent='Temanmu boleh gabung kapan saja — bahkan saat permainan sudah berjalan.';
     $('#lobStatus').textContent='';
-  }catch(e){$('#lobStatus').textContent=netErrMsg(e);}
+  }catch(e){$('#lobStatus').textContent=netErrMsg(e);net=null;}
 });
 bind('#btnCopy',async function(){
   var c=net?net.code:'';
   try{ await navigator.clipboard.writeText(c); toast('Kode disalin!'); }
-  catch(e){ toast('Kode: '+c); } // clipboard diblokir sandbox → tampilkan saja
+  catch(e){ toast('Kode: '+c); }
 });
 bind('#btnToBrief',function(){showBrief('host');});
 bind('#btnJoin',async function(){
@@ -1433,23 +1458,19 @@ bind('#btnJoin',async function(){
   if(code.length!==4){$('#lobStatus').textContent='Kode harus 4 huruf.';return;}
   try{
     $('#lobStatus').textContent='Mencari ruangan…';
-    await ensureFB();
     leaveNet();
-    var m=(await FB.get(FB.ref(FB.db,'rooms/'+code+'/meta'))).val();
+    var m=await FB.get('rooms/'+code+'/meta');
     if(!m){$('#lobStatus').textContent='Ruangan tidak ditemukan.';return;}
+    if(m.mt&&Date.now()-m.mt>20000){$('#lobStatus').textContent='Host tidak aktif — minta kode baru.';return;}
     net={isHost:false,code:code,role:m.role==='koki'?'pelayan':'koki'};
-    var gRef=FB.ref(FB.db,'rooms/'+code+'/guest');
-    await FB.set(gRef,{j:Date.now()});
-    try{FB.onDisconnect(gRef).remove().catch(function(){});}catch(e){}
-    unsubs.push(FB.onValue(FB.ref(FB.db,'rooms/'+code+'/meta'),function(s){
-      if(!s.exists()&&net&&!net.isHost)netLost('Host menutup ruangan.');
-    }));
-    unsubs.push(FB.onValue(FB.ref(FB.db,'rooms/'+code+'/state'),function(s){
-      var v=normState(s.val()); if(v)netSnap=v;
-    }));
+    await FB.put('rooms/'+code+'/guest',{ts:Date.now()});
+    netTimers.push(setInterval(guestTick,180));
+    netTimers.push(setInterval(function(){
+      if(net&&!net.isHost)FB.put('rooms/'+code+'/guest',{ts:Date.now()}).catch(function(){});
+    },2500));
     $('#lobMain').classList.add('hidden');$('#lobGuest').classList.remove('hidden');
     $('#lobStatus').textContent='';
-  }catch(e){$('#lobStatus').textContent=netErrMsg(e);}
+  }catch(e){$('#lobStatus').textContent=netErrMsg(e);net=null;}
 });
 bind('#btnStartShift',startShift);
 bind('#btnAgain',again);
